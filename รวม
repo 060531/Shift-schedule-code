@@ -1,0 +1,244 @@
+function replaceShiftValues(value) {
+  if (value === 'ช/ด') return 'ด';
+  if (value === 'ป/บ') return 'บ';
+  if (value === 'ป/ด') return 'ด';
+  if (value === 'บ' || value === 'ด') return value;
+  return '';
+}
+
+function copyDataToBdRN() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheetSource = ss.getSheetByName("ตารางเวรจริง");
+  var sheetDest = ss.getSheetByName("บ,ด RN");
+
+  if (!sheetSource || !sheetDest) {
+    Logger.log("One of the sheets not found.");
+    return;
+  }
+
+  var rangesToCopy = [
+    {source: "G9:AK21", dest: "F7:AJ19"},
+    {source: "G34:AK38", dest: "F33:AJ37"},
+    {source: "G41:AK41", dest: "F38:AJ38"}
+  ];
+
+  for (var i = 0; i < rangesToCopy.length; i++) {
+    var sourceRange = sheetSource.getRange(rangesToCopy[i].source);
+    var destRange = sheetDest.getRange(rangesToCopy[i].dest);
+
+    var sourceValues = sourceRange.getValues();
+    Logger.log("Source values from range " + rangesToCopy[i].source + ": " + JSON.stringify(sourceValues));
+
+    if (!sourceValues || sourceValues.length === 0) {
+      Logger.log("No data found in range: " + rangesToCopy[i].source);
+      continue;
+    }
+
+    var destValues = [];
+
+    for (var row = 0; row < sourceValues.length; row++) {
+      var destRow = [];
+      for (var col = 0; col < sourceValues[row].length; col++) {
+        var value = replaceShiftValues(sourceValues[row][col]);
+        destRow.push(value);
+      }
+      destValues.push(destRow);
+    }
+
+    Logger.log("Destination values to be set in range " + rangesToCopy[i].dest + ": " + JSON.stringify(destValues));
+
+    if (destValues.length > 0 && destValues[0].length === destRange.getNumColumns()) {
+      destRange.setValues(destValues);
+      Logger.log("Values set successfully in range: " + rangesToCopy[i].dest);
+    } else {
+      Logger.log("Mismatch in column count or no data to set in range: " + rangesToCopy[i].dest);
+    }
+  }
+}
+
+function copyDataToOtherSheets() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheetSource = ss.getSheetByName("ตารางเวรจริง");
+
+  if (!sheetSource) {
+    Logger.log("Sheet 'ตารางเวรจริง' not found.");
+    return;
+  }
+
+  // Copy data to 'เวรนี+มิส'
+  var sheetDestWerniMiss = ss.getSheetByName('เวรนี+มิส');
+  if (sheetDestWerniMiss) {
+    var sourceRangeWerniMiss = sheetSource.getRange('G39:AK40');
+    var sourceValuesWerniMiss = sourceRangeWerniMiss.getValues();
+    Logger.log("Source values for 'เวรนี+มิส': " + JSON.stringify(sourceValuesWerniMiss));
+
+    if (sourceValuesWerniMiss && sourceValuesWerniMiss.length > 0 && sourceValuesWerniMiss[0].length > 0) {
+      var targetRangeWerniMiss = sheetDestWerniMiss.getRange('G6:AK7');
+      targetRangeWerniMiss.setValues(sourceValuesWerniMiss);
+      Logger.log("Values set successfully in 'เวรนี+มิส'");
+    } else {
+      Logger.log("No data found in range: G39:AK40");
+    }
+  } else {
+    Logger.log("Sheet 'เวรนี+มิส' not found.");
+  }
+
+  // Copy data to 'ค่าเวรนี'
+  var sheetDestNurse = ss.getSheetByName('ค่าเวรนี');
+  if (sheetDestNurse) {
+    var sourceRangeNurse = sheetSource.getRange('G39:AK39');
+    var sourceValuesNurse = sourceRangeNurse.getValues();
+    Logger.log("Source values for 'ค่าเวรนี': " + JSON.stringify(sourceValuesNurse));
+
+    if (sourceValuesNurse && sourceValuesNurse.length > 0 && sourceValuesNurse[0].length > 0) {
+      var filteredValuesNurse = sourceValuesNurse[0].map(value => replaceShiftValues(value));
+      var targetValuesNurse = [filteredValuesNurse];
+      var targetRangeNurse = sheetDestNurse.getRange('F7:AJ7');
+      targetRangeNurse.setValues(targetValuesNurse);
+      Logger.log("Values set successfully in 'ค่าเวรนี'");
+    } else {
+      Logger.log("No data found in range: G39:AK39");
+    }
+  } else {
+    Logger.log("Sheet 'ค่าเวรนี' not found.");
+  }
+
+  // Copy data to 'ค่าเวร มิส'
+  var sheetDestMiss = ss.getSheetByName('ค่าเวร มิส');
+  if (sheetDestMiss) {
+    var sourceRangeMiss = sheetSource.getRange('G40:AK40');
+    var sourceValuesMiss = sourceRangeMiss.getValues();
+    Logger.log("Source values for 'ค่าเวร มิส': " + JSON.stringify(sourceValuesMiss));
+
+    if (sourceValuesMiss && sourceValuesMiss.length > 0 && sourceValuesMiss[0].length > 0) {
+      var filteredValuesMiss = sourceValuesMiss[0].map(value => replaceShiftValues(value));
+      var targetValuesMiss = [filteredValuesMiss];
+      var targetRangeMiss = sheetDestMiss.getRange('F7:AJ7');
+      targetRangeMiss.setValues(targetValuesMiss);
+      Logger.log("Values set successfully in 'ค่าเวร มิส'");
+    } else {
+      Logger.log("No data found in range: G40:AK40");
+    }
+  } else {
+    Logger.log("Sheet 'ค่าเวร มิส' not found.");
+  }
+}
+
+function transferData() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sourceSheet = ss.getSheetByName("บ,ด RN");
+  var targetSheet = ss.getSheetByName("ใบเซ็นชื่อ");
+
+  // ดึงข้อมูลจาก C7:D19 และ C33:D38
+  var sourceRange1 = sourceSheet.getRange("C7:D19");
+  var sourceRange2 = sourceSheet.getRange("C33:D38");
+  var data1 = sourceRange1.getValues();
+  var data2 = sourceRange2.getValues();
+  var data = data1.concat(data2);
+
+  // ตรวจสอบข้อมูลใน F7:AJ19, F33:AJ38 และวันที่ใน F6:AJ6
+  var checkRange1 = sourceSheet.getRange("F7:AJ19");
+  var checkRange2 = sourceSheet.getRange("F33:AJ38");
+  var checkData1 = checkRange1.getValues();
+  var checkData2 = checkRange2.getValues();
+  var checkData = checkData1.concat(checkData2);
+
+  var dateRange = sourceSheet.getRange("F6:AJ6");
+  var dateData = dateRange.getValues()[0];
+
+  var filteredData = [];
+
+  for (var i = 0; i < checkData.length; i++) {
+    for (var j = 0; j < checkData[i].length; j++) {
+      if (checkData[i][j] !== "") {
+        filteredData.push({date: dateData[j], values: data[i], shift: checkData[i][j]});
+      }
+    }
+  }
+
+  // เรียงข้อมูลตามวันที่และตามลำดับ 'บ' ก่อน 'ด'
+  filteredData.sort(function(a, b) {
+    var dateComparison = new Date(a.date) - new Date(b.date);
+    if (dateComparison !== 0) {
+      return dateComparison;
+    } else {
+      if (a.shift === 'บ' && b.shift === 'ด') {
+        return -1;
+      } else if (a.shift === 'ด' && b.shift === 'บ') {
+        return 1;
+      } else {
+        return 0;
+      }
+    }
+  });
+
+  // นำข้อมูลที่กรองแล้วจาก C และ D ไปใส่ในคอลัมน์ A, B และ H ของ "ใบเซ็นชื่อ"
+  var lastDate = "";
+  var bFound = false;
+  var dFound = false;
+  for (var k = 0; k < filteredData.length; k++) {
+    var currentDate = filteredData[k].date + " มิถุนายน 2567";
+    if (currentDate !== lastDate) {
+      targetSheet.getRange(5 + k, 1).setValue(currentDate); // ใส่วันที่ในคอลัมน์ A
+      lastDate = currentDate;
+      bFound = false;
+      dFound = false;
+    } else {
+      targetSheet.getRange(5 + k, 1).setValue(""); // ช่องวันที่ว่าง
+    }
+    targetSheet.getRange(5 + k, 2).setValue(filteredData[k].values[0] + " " + filteredData[k].values[1]); // รวมค่าในคอลัมน์ C และ D ลงในคอลัมน์ B
+
+    if (filteredData[k].shift === 'บ' && !bFound) {
+      targetSheet.getRange(5 + k, 8).setValue(filteredData[k].shift); // ใส่ 'บ' ตัวแรกในคอลัมน์ H
+      bFound = true;
+    } else if (filteredData[k].shift === 'ด' && !dFound) {
+      targetSheet.getRange(5 + k, 8).setValue(filteredData[k].shift); // ใส่ 'ด' ตัวแรกในคอลัมน์ H
+      dFound = true;
+    } else {
+      targetSheet.getRange(5 + k, 8).setValue(""); // ช่องว่างสำหรับ 'บ' และ 'ด' อื่นๆ
+    }
+
+    // ตรวจสอบชื่อในคอลัมน์ B และแสดงตำแหน่งในคอลัมน์ C หากพบชื่อ
+    var fullName = filteredData[k].values[0] + " " + filteredData[k].values[1];
+    var positions = {
+      "น.ส.สุคนธา สองสี": "พยาบาลวิชาชีพชำนาญการ",
+      "นางณัฐพร สนิทมัจโร": "พยาบาลวิชาชีพชำนาญการ",
+      "นางสาวกุลพร ทองศรี": "พยาบาลวิชาชีพชำนาญการ",
+      "นางปาจรีย์ หนูน้อย": "พยาบาลวิชาชีพชำนาญการ",
+      "นางอัจฉราวรรณ พูนผล": "พยาบาลวิชาชีพชำนาญการ",
+      "น.ส.อวินา ศรีประสม": "พยาบาลวิชาชีพชำนาญการ",
+      "น.ส.สุคนธา บุญสุขจันทร์": "พยาบาลวิชาชีพชำนาญการ",
+      "นางนสร ทองแก้ว": "พยาบาลวิชาชีพชำนาญการ",
+      "น.ส.วรรณฤดี เดชเกิด": "พยาบาลวิชาชีพปฏิบัติการ",
+      "น.ส.กมลทิพย์ เทพโอสถ": "พยาบาลวิชาชีพปฏิบัติการ",
+      "น.ส.นุชนาถ คงดำ": "พยาบาลวิชาชีพปฏิบัติการ",
+      "น.ส.ทานตะวัน ห่อเพ็ชร": "พยาบาลวิชาชีพปฏิบัติการ",
+      "นางปัทมาภรณ์ เกตุระหงษ์": "พยาบาลวิชาชีพปฏิบัติการ",
+      "น.ส.พรชิตา วงศ์สุวรรณ": "พยาบาลวิชาชีพปฏิบัติการ",
+      "น.ส.จุฬาลักษณ์ มามะ": "พยาบาลวิชาชีพปฏิบัติการ",
+      "น.ส.นายีฮะห์ ฮาแวยูโซะ": "พยาบาลวิชาชีพปฏิบัติการ",
+      "น.ส.บุญยาพร หนูช่วย": "พยาบาลวิชาชีพปฏิบัติการ",
+      "น.ส.วนัสนันท์ หมุดเจริญ": "พยาบาลวิชาชีพปฏิบัติการ",
+      "น.ส.สุไลดา ซูลง": "พยาบาลวิชาชีพปฏิบัติการ",
+    };
+    
+    if (positions[fullName]) {
+      targetSheet.getRange(5 + k, 3).setValue(positions[fullName]);
+    } else {
+      targetSheet.getRange(5 + k, 3).setValue(""); // ล้างค่าในคอลัมน์ C หากไม่มีชื่อที่ตรงกัน
+    }
+  }
+}
+
+function testUpdateShiftSchedule() {
+  copyDataToBdRN();
+  copyDataToOtherSheets();
+  transferData();
+}
+
+function onOpen() {
+  var ui = SpreadsheetApp.getUi();
+  ui.createMenu('Custom Scripts')
+    .addItem('Update Shift Schedule', 'testUpdateShiftSchedule')
+    .addToUi();
+}
