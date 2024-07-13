@@ -1,0 +1,698 @@
+function replaceShiftValues(value) {
+  if (value === 'ช/ด') return 'ด';
+  if (value === 'ป/บ') return 'บ';
+  if (value === 'ป/ด') return 'ด';
+  if (value === 'บ' || value === 'ด') return value;
+  return '';
+}
+
+function copyDataToBdRN() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheetSource = ss.getSheetByName("ตารางเวรจริง");
+  var sheetDest = ss.getSheetByName("บ,ด RN");
+
+  if (!sheetSource || !sheetDest) {
+    Logger.log("One of the sheets not found.");
+    return;
+  }
+
+  var rangesToCopy = [
+    {source: "G9:AK20", dest: "F8:AJ19"},
+    {source: "G34:AK38", dest: "F33:AJ37"},
+    {source: "G41:AK41", dest: "F38:AJ38"}
+  ];
+
+  for (var i = 0; i < rangesToCopy.length; i++) {
+    var sourceRange = sheetSource.getRange(rangesToCopy[i].source);
+    var destRange = sheetDest.getRange(rangesToCopy[i].dest);
+
+    var sourceValues = sourceRange.getValues();
+    Logger.log("Source values from range " + rangesToCopy[i].source + ": " + JSON.stringify(sourceValues));
+
+    if (!sourceValues || sourceValues.length === 0) {
+      Logger.log("No data found in range: " + rangesToCopy[i].source);
+      continue;
+    }
+
+    var destValues = [];
+
+    for (var row = 0; row < sourceValues.length; row++) {
+      var destRow = [];
+      for (var col = 0; col < sourceValues[row].length; col++) {
+        var value = replaceShiftValues(sourceValues[row][col]);
+        destRow.push(value);
+      }
+      destValues.push(destRow);
+    }
+
+    Logger.log("Destination values to be set in range " + rangesToCopy[i].dest + ": " + JSON.stringify(destValues));
+
+    if (destValues.length > 0 && destValues[0].length === destRange.getNumColumns()) {
+      destRange.setValues(destValues);
+      Logger.log("Values set successfully in range: " + rangesToCopy[i].dest);
+    } else {
+      Logger.log("Mismatch in column count or no data to set in range: " + rangesToCopy[i].dest);
+    }
+  }
+}
+
+function copyDataToOtherSheets() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheetSource = ss.getSheetByName("ตารางเวรจริง");
+
+  if (!sheetSource) {
+    Logger.log("Sheet 'ตารางเวรจริง' not found.");
+    return;
+  }
+
+  // Copy data to 'เวรนี+มิส'
+  var sheetDestWerniMiss = ss.getSheetByName('เวรนี+มิส');
+  if (sheetDestWerniMiss) {
+    var sourceRangeWerniMiss = sheetSource.getRange('G39:AK40');
+    var sourceValuesWerniMiss = sourceRangeWerniMiss.getValues();
+    Logger.log("Source values for 'เวรนี+มิส': " + JSON.stringify(sourceValuesWerniMiss));
+
+    if (sourceValuesWerniMiss && sourceValuesWerniMiss.length > 0 && sourceValuesWerniMiss[0].length > 0) {
+      var targetRangeWerniMiss = sheetDestWerniMiss.getRange('G6:AK7');
+      targetRangeWerniMiss.setValues(sourceValuesWerniMiss);
+      Logger.log("Values set successfully in 'เวรนี+มิส'");
+    } else {
+      Logger.log("No data found in range: G39:AK40");
+    }
+  } else {
+    Logger.log("Sheet 'เวรนี+มิส' not found.");
+  }
+
+  // Copy data to 'ค่าเวรนี'
+  var sheetDestNurse = ss.getSheetByName('ค่าเวรนี');
+  if (sheetDestNurse) {
+    var sourceRangeNurse = sheetSource.getRange('G39:AK39');
+    var sourceValuesNurse = sourceRangeNurse.getValues();
+    Logger.log("Source values for 'ค่าเวรนี': " + JSON.stringify(sourceValuesNurse));
+
+    if (sourceValuesNurse && sourceValuesNurse.length > 0 && sourceValuesNurse[0].length > 0) {
+      var filteredValuesNurse = sourceValuesNurse[0].map(value => replaceShiftValues(value));
+      var targetValuesNurse = [filteredValuesNurse];
+      var targetRangeNurse = sheetDestNurse.getRange('F7:AJ7');
+      targetRangeNurse.setValues(targetValuesNurse);
+      Logger.log("Values set successfully in 'ค่าเวรนี'");
+    } else {
+      Logger.log("No data found in range: G39:AK39");
+    }
+  } else {
+    Logger.log("Sheet 'ค่าเวรนี' not found.");
+  }
+
+  // Copy data to 'ค่าเวร มิส'
+  var sheetDestMiss = ss.getSheetByName('ค่าเวร มิส');
+  if (sheetDestMiss) {
+    var sourceRangeMiss = sheetSource.getRange('G40:AK40');
+    var sourceValuesMiss = sourceRangeMiss.getValues();
+    Logger.log("Source values for 'ค่าเวร มิส': " + JSON.stringify(sourceValuesMiss));
+
+    if (sourceValuesMiss && sourceValuesMiss.length > 0 && sourceValuesMiss[0].length > 0) {
+      var filteredValuesMiss = sourceValuesMiss[0].map(value => replaceShiftValues(value));
+      var targetValuesMiss = [filteredValuesMiss];
+      var targetRangeMiss = sheetDestMiss.getRange('F7:AJ7');
+      targetRangeMiss.setValues(targetValuesMiss);
+      Logger.log("Values set successfully in 'ค่าเวร มิส'");
+    } else {
+      Logger.log("No data found in range: G40:AK40");
+    }
+  } else {
+    Logger.log("Sheet 'ค่าเวร มิส' not found.");
+  }
+}
+
+function removeDuplicateEntries() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sourceSheet = ss.getSheetByName("OT RN");
+  var targetSheet = ss.getSheetByName("บ,ด RN");
+
+  if (!sourceSheet || !targetSheet) {
+    Logger.log("One of the sheets not found.");
+    return;
+  }
+
+  var sourceRange1 = sourceSheet.getRange("F7:AJ19");
+  var sourceRange2 = sourceSheet.getRange("F33:AJ38");
+  var targetRange1 = targetSheet.getRange("F7:AJ19");
+  var targetRange2 = targetSheet.getRange("F33:AJ38");
+
+  var sourceValues1 = sourceRange1.getValues();
+  var sourceValues2 = sourceRange2.getValues();
+  var targetValues1 = targetRange1.getValues();
+  var targetValues2 = targetRange2.getValues();
+
+  var targetValuesCombined = targetValues1.concat(targetValues2);
+
+  var dateRangeSource = sourceSheet.getRange("F6:AJ6").getValues()[0];
+  var dateRangeTarget = targetSheet.getRange("F6:AJ6").getValues()[0];
+
+  for (var i = 0; i < sourceValues1.length; i++) {
+    for (var j = 0; j < sourceValues1[i].length; j++) {
+      if (sourceValues1[i][j] === 'ช' && targetValuesCombined[i][j] === 'ช/ด') {
+        targetValuesCombined[i][j] = 'ด';
+      } else if (sourceValues1[i][j] === targetValuesCombined[i][j] && dateRangeSource[j] === dateRangeTarget[j]) {
+        targetValuesCombined[i][j] = "";
+      }
+    }
+  }
+
+  for (var i = 0; i < sourceValues2.length; i++) {
+    for (var j = 0; j < sourceValues2[i].length; j++) {
+      if (sourceValues2[i][j] === 'ช' && targetValuesCombined[i + sourceValues1.length][j] === 'ช/ด') {
+        targetValuesCombined[i + sourceValues1.length][j] = 'ด';
+      } else if (sourceValues2[i][j] === targetValuesCombined[i + sourceValues1.length][j] && dateRangeSource[j] === dateRangeTarget[j]) {
+        targetValuesCombined[i + sourceValues1.length][j] = "";
+      }
+    }
+  }
+
+  targetRange1.setValues(targetValuesCombined.slice(0, targetValues1.length));
+  targetRange2.setValues(targetValuesCombined.slice(targetValues1.length));
+}
+
+function clearMatchingValues() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  
+  // Load sheets
+  var otSheet = ss.getSheetByName("OT นี");
+  var valueSheet = ss.getSheetByName("ค่าเวรนี");
+  
+  if (!otSheet || !valueSheet) {
+    Logger.log("One of the sheets not found.");
+    return;
+  }
+  
+  // Get data ranges
+  var otRange = otSheet.getRange("F7:AJ7");
+  var valueRange = valueSheet.getRange("F7:AJ7");
+  var dateRangeOt = otSheet.getRange("F6:AJ6");
+  var dateRangeValue = valueSheet.getRange("F6:AJ6");
+  var nameOt = otSheet.getRange("C7").getValue();
+  var nameValue = valueSheet.getRange("C7").getValue();
+  
+  // Get values
+  var otValues = otRange.getValues()[0];
+  var valueValues = valueRange.getValues()[0];
+  var dateValuesOt = dateRangeOt.getValues()[0];
+  var dateValuesValue = dateRangeValue.getValues()[0];
+  
+  // Loop through the values
+  for (var i = 0; i < otValues.length; i++) {
+    if (nameOt == nameValue && dateValuesOt[i] == dateValuesValue[i] && otValues[i] != "" && otValues[i] == valueValues[i]) {
+      valueValues[i] = "";
+    }
+  }
+  
+  // Set the updated values back to the valueSheet
+  valueRange.setValues([valueValues]);
+}
+
+function clearMatchingValuesMiss() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  
+  // Load sheets
+  var otSheet = ss.getSheetByName("OT มิส");
+  var valueSheet = ss.getSheetByName("ค่าเวร มิส");
+  
+  if (!otSheet || !valueSheet) {
+    Logger.log("One of the sheets not found.");
+    return;
+  }
+  
+  // Get data ranges
+  var otRange = otSheet.getRange("F7:AJ7");
+  var valueRange = valueSheet.getRange("F7:AJ7");
+  var dateRangeOt = otSheet.getRange("F6:AJ6");
+  var dateRangeValue = valueSheet.getRange("F6:AJ6");
+  var nameOt = otSheet.getRange("C7").getValue();
+  var nameValue = valueSheet.getRange("C7").getValue();
+  
+  // Get values
+  var otValues = otRange.getValues()[0];
+  var valueValues = valueRange.getValues()[0];
+  var dateValuesOt = dateRangeOt.getValues()[0];
+  var dateValuesValue = dateRangeValue.getValues()[0];
+  
+  // Loop through the values
+  for (var i = 0; i < otValues.length; i++) {
+    if (nameOt == nameValue && dateValuesOt[i] == dateValuesValue[i] && otValues[i] != "" && otValues[i] == valueValues[i]) {
+      valueValues[i] = "";
+    }
+  }
+
+  // Set the updated values back to the valueSheet
+  valueRange.setValues([valueValues]);
+}
+
+function transferDataFromOTRN() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sourceSheet = ss.getSheetByName("OT RN");
+  var targetSheet = ss.getSheetByName("ใบเซ็นชื่อ OT");
+
+  if (!sourceSheet || !targetSheet) {
+    Logger.log("One of the sheets not found.");
+    return;
+  }
+
+  var sourceRange1 = sourceSheet.getRange("C7:D19");
+  var sourceRange2 = sourceSheet.getRange("C33:D38");
+  var data1 = sourceRange1.getValues();
+  var data2 = sourceRange2.getValues();
+  var data = data1.concat(data2);
+
+  var checkRange1 = sourceSheet.getRange("F7:AJ19");
+  var checkRange2 = sourceSheet.getRange("F33:AJ38");
+  var checkData1 = checkRange1.getValues();
+  var checkData2 = checkRange2.getValues();
+  var checkData = checkData1.concat(checkData2);
+
+  var dateRange = sourceSheet.getRange("F6:AJ6");
+  var dateData = dateRange.getValues()[0];
+
+  var filteredData = [];
+
+  for (var i = 0; i < checkData.length; i++) {
+    for (var j = 0; j < checkData[i].length; j++) {
+      if (checkData[i][j] !== "") {
+        filteredData.push({date: dateData[j], values: data[i], shift: checkData[i][j]});
+      }
+    }
+  }
+
+  filteredData.sort(function(a, b) {
+    var dateComparison = new Date(a.date) - new Date(b.date);
+    if (dateComparison !== 0) {
+      return dateComparison;
+    } else {
+      if (a.shift === 'ช' && (b.shift === 'บ' || b.shift === 'ด')) {
+        return -1;
+      } else if (a.shift === 'บ' && b.shift === 'ด') {
+        return -1;
+      } else if (a.shift === 'ด' && (b.shift === 'ช' || b.shift === 'บ')) {
+        return 1;
+      } else if (a.shift === 'บ' && b.shift === 'ช') {
+        return 1;
+      } else if (a.shift === 'ด' && b.shift === 'ช') {
+        return 1;
+      } else {
+        return 0;
+      }
+    }
+  });
+
+  var lastDate = "";
+  var chFound = false;
+  var bFound = false;
+  var dFound = false;
+  var rowCount = 0; // ตัวแปรนับแถวที่ถูกดึงข้อมูล
+  var currentRow = 5; // เริ่มต้นที่แถว 5
+
+  for (var k = 0; k < filteredData.length; k++) {
+    var currentDate = filteredData[k].date + " มิถุนายน 2567";
+    if (currentDate !== lastDate) {
+      targetSheet.getRange(currentRow, 1).setValue(currentDate);
+      lastDate = currentDate;
+      chFound = false;
+      bFound = false;
+      dFound = false;
+    } else {
+      targetSheet.getRange(currentRow, 1).setValue("");
+    }
+    targetSheet.getRange(currentRow, 2).setValue(filteredData[k].values[0] + " " + filteredData[k].values[1]);
+
+    if (filteredData[k].shift === 'ช' && !chFound) {
+      targetSheet.getRange(currentRow, 8).setValue(filteredData[k].shift);
+      chFound = true;
+    } else if (filteredData[k].shift === 'บ' && !bFound) {
+      targetSheet.getRange(currentRow, 8).setValue(filteredData[k].shift);
+      bFound = true;
+    } else if (filteredData[k].shift === 'ด' && !dFound) {
+      targetSheet.getRange(currentRow, 8).setValue(filteredData[k].shift);
+      dFound = true;
+    } else {
+      targetSheet.getRange(currentRow, 8).setValue("");
+    }
+
+    var fullName = filteredData[k].values[0] + " " + filteredData[k].values[1];
+    var positions = {
+      "นางสุมาลี บุญธรรม": "พยาบาลวิชาชีพชำนาญการ",
+      "น.ส.สุคนธา สองสี": "พยาบาลวิชาชีพชำนาญการ",
+      "นางณัฐพร สนิทมัจโร": "พยาบาลวิชาชีพชำนาญการ",
+      "นางสาวกุลพร ทองศรี": "พยาบาลวิชาชีพชำนาญการ",
+      "นางปาจรีย์ หนูน้อย": "พยาบาลวิชาชีพชำนาญการ",
+      "นางอัจฉราวรรณ พูนผล": "พยาบาลวิชาชีพชำนาญการ",
+      "น.ส.อวินา ศรีประสม": "พยาบาลวิชาชีพชำนาญการ",
+      "น.ส.สุคนธา บุญสุขจันทร์": "พยาบาลวิชาชีพชำนาญการ",
+      "นางนสร ทองแก้ว": "พยาบาลวิชาชีพชำนาญการ",
+      "น.ส.วรรณฤดี เดชเกิด": "พยาบาลวิชาชีพปฏิบัติการ",
+      "น.ส.กมลทิพย์ เทพโอสถ": "พยาบาลวิชาชีพปฏิบัติการ",
+      "น.ส.นุชนาถ คงดำ": "พยาบาลวิชาชีพปฏิบัติการ",
+      "น.ส.ทานตะวัน ห่อเพ็ชร": "พยาบาลวิชาชีพปฏิบัติการ",
+      "นางปัทมาภรณ์ เกตุระหงษ์": "พยาบาลวิชาชีพปฏิบัติการ",
+      "น.ส.พรชิตา วงศ์สุวรรณ": "พยาบาลวิชาชีพปฏิบัติการ",
+      "น.ส.จุฬาลักษณ์ มามะ": "พยาบาลวิชาชีพปฏิบัติการ",
+      "น.ส.นายีฮะห์ ฮาแวยูโซะ": "พยาบาลวิชาชีพปฏิบัติการ",
+      "น.ส.บุญยาพร หนูช่วย": "พยาบาลวิชาชีพปฏิบัติการ",
+      "น.ส.วนัสนันท์ หมุดเจริญ": "พยาบาลวิชาชีพปฏิบัติการ",
+      "น.ส.สุไลดา ซูลง": "พยาบาลวิชาชีพปฏิบัติการ",
+      "น.ส.อามานีย์ ยูโซะ": "พยาบาลวิชาชีพ",
+      "น.ส.ชลาดาย์ อาเย๊าะ": "พยาบาลวิชาชีพ"
+    };
+
+    if (positions[fullName]) {
+      targetSheet.getRange(currentRow, 3).setValue(positions[fullName]);
+    } else {
+      targetSheet.getRange(currentRow, 3).setValue("");
+    }
+
+    rowCount++; // เพิ่มตัวนับแถว
+    currentRow++; // เพิ่มแถวปัจจุบัน
+
+    if (rowCount % 33 === 0) {
+      currentRow += 8; // เว้นว่างแถวไว้ 8 แถว
+    }
+  }
+}
+
+function transferDataFromKaoWerni() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sourceSheet = ss.getSheetByName("OT นี");
+  var targetSheet = ss.getSheetByName("ใบเซ็นชื่อนี OT");
+
+  if (!sourceSheet || !targetSheet) {
+    Logger.log("One of the sheets not found.");
+    return;
+  }
+
+  var sourceRange = sourceSheet.getRange("C7:D7");
+  var data = sourceRange.getValues()[0];
+
+  var checkRange = sourceSheet.getRange("F7:AJ7");
+  var checkData = checkRange.getValues()[0];
+  var dateRange = sourceSheet.getRange("F6:AJ6");
+  var dateData = dateRange.getValues()[0];
+
+  var filteredData = [];
+
+  for (var j = 0; j < checkData.length; j++) {
+    if (checkData[j] !== "") {
+      filteredData.push({date: dateData[j], values: data, shift: checkData[j]});
+    }
+  }
+
+  filteredData.sort(function(a, b) {
+    return new Date(a.date) - new Date(b.date);
+  });
+
+  var lastDate = "";
+  var rowOffset = 5;
+  for (var k = 0; k < filteredData.length; k++) {
+    var currentDate = filteredData[k].date + " มิถุนายน 2567";
+    if (currentDate !== lastDate) {
+      targetSheet.getRange(rowOffset + k, 1).setValue(currentDate);
+      lastDate = currentDate;
+    } else {
+      targetSheet.getRange(rowOffset + k, 1).setValue("");
+    }
+    targetSheet.getRange(rowOffset + k, 2).setValue(filteredData[k].values[0] + " " + filteredData[k].values[1]);
+
+    if (filteredData[k].shift === 'ช') {
+      targetSheet.getRange(rowOffset + k, 8).setValue('ช');
+    } else if (filteredData[k].shift === 'บ') {
+      targetSheet.getRange(rowOffset + k, 8).setValue('บ');
+    } else if (filteredData[k].shift === 'ด') {
+      targetSheet.getRange(rowOffset + k, 8).setValue('ด');
+    }
+
+    if (filteredData[k].values[0] + " " + filteredData[k].values[1] === "น.ส.อามานีย์ ยูโซะ") {
+      targetSheet.getRange(rowOffset + k, 3).setValue("พยาบาลวิชาชีพ");
+    }
+  }
+}
+
+function transferDataFromKaoMiss() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sourceSheet = ss.getSheetByName("OT มิส");
+  var targetSheet = ss.getSheetByName("ใบเซ็นชื่อมิส OT");
+
+  if (!sourceSheet || !targetSheet) {
+    Logger.log("One of the sheets not found.");
+    return;
+  }
+
+  var sourceRange = sourceSheet.getRange("C7:D7");
+  var data = sourceRange.getValues()[0];
+
+  var checkRange = sourceSheet.getRange("F7:AJ7");
+  var checkData = checkRange.getValues()[0];
+  var dateRange = sourceSheet.getRange("F6:AJ6");
+  var dateData = dateRange.getValues()[0];
+
+  var filteredData = [];
+
+  for (var j = 0; j < checkData.length; j++) {
+    if (checkData[j] !== "") {
+      filteredData.push({date: dateData[j], values: data, shift: checkData[j]});
+    }
+  }
+
+  filteredData.sort(function(a, b) {
+    return new Date(a.date) - new Date(b.date);
+  });
+
+  var lastDate = "";
+  var rowOffset = 5;
+  for (var k = 0; k < filteredData.length; k++) {
+    var currentDate = filteredData[k].date + " มิถุนายน 2567";
+    if (currentDate !== lastDate) {
+      targetSheet.getRange(rowOffset + k, 1).setValue(currentDate);
+      lastDate = currentDate;
+    } else {
+      targetSheet.getRange(rowOffset + k, 1).setValue("");
+    }
+    targetSheet.getRange(rowOffset + k, 2).setValue(filteredData[k].values[0] + " " + filteredData[k].values[1]);
+
+    if (filteredData[k].shift === 'ช') {
+      targetSheet.getRange(rowOffset + k, 8).setValue('ช');
+    } else if (filteredData[k].shift === 'บ') {
+      targetSheet.getRange(rowOffset + k, 8).setValue('บ');
+    } else if (filteredData[k].shift === 'ด') {
+      targetSheet.getRange(rowOffset + k, 8).setValue('ด');
+    }
+
+    if (filteredData[k].values[0] + " " + filteredData[k].values[1] === "น.ส.ชลาดาย์ อาเย๊าะ") {
+      targetSheet.getRange(rowOffset + k, 3).setValue("พยาบาลวิชาชีพ");
+    }
+  }
+}
+
+function transferDataFromSheet(ss, sourceSheetName, targetSheetName, startRow) {
+  var sourceSheet = ss.getSheetByName(sourceSheetName);
+  var targetSheet = ss.getSheetByName(targetSheetName);
+
+  if (!sourceSheet || !targetSheet) {
+    Logger.log("One of the sheets not found: " + sourceSheetName + " or " + targetSheetName);
+    return;
+  }
+
+  var sourceRange = sourceSheet.getRange("C7:D7");
+  var data = sourceRange.getValues()[0];
+
+  var checkRange = sourceSheet.getRange("F7:AJ7");
+  var checkData = checkRange.getValues()[0];
+  var dateRange = sourceSheet.getRange("F6:AJ6");
+  var dateData = dateRange.getValues()[0];
+
+  var filteredData = [];
+
+  for (var j = 0; j < checkData.length; j++) {
+    if (checkData[j] !== "") {
+      filteredData.push({date: dateData[j], values: data, shift: checkData[j]});
+    }
+  }
+
+  filteredData.sort(function(a, b) {
+    return new Date(a.date) - new Date(b.date);
+  });
+
+  var lastDate = "";
+  var currentRow = startRow;
+  for (var k = 0; k < filteredData.length; k++) {
+    var currentDate = filteredData[k].date + " มิถุนายน 2567";
+    if (currentDate !== lastDate) {
+      targetSheet.getRange(currentRow, 1).setValue(currentDate);
+      lastDate = currentDate;
+    } else {
+      targetSheet.getRange(currentRow, 1).setValue("");
+    }
+    targetSheet.getRange(currentRow, 2).setValue(filteredData[k].values[0] + " " + filteredData[k].values[1]);
+
+    if (filteredData[k].shift === 'ช') {
+      targetSheet.getRange(currentRow, 8).setValue('ช');
+    } else if (filteredData[k].shift === 'บ') {
+      targetSheet.getRange(currentRow, 8).setValue('บ');
+    } else if (filteredData[k].shift === 'ด') {
+      targetSheet.getRange(currentRow, 8).setValue('ด');
+    }
+
+    if (filteredData[k].values[0] + " " + filteredData[k].values[1] === "น.ส.อามานีย์ ยูโซะ") {
+      targetSheet.getRange(currentRow, 3).setValue("พยาบาลวิชาชีพ");
+    } else if (filteredData[k].values[0] + " " + filteredData[k].values[1] === "น.ส.ชลาดาย์ อาเย๊าะ") {
+      targetSheet.getRange(currentRow, 3).setValue("พยาบาลวิชาชีพ");
+    }
+
+    currentRow++;
+  }
+}
+
+function transferData() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  transferDataFromBdRN(ss, "บ,ด RN", "ใบเซ็นชื่อ");
+  transferDataFromSheet(ss, "ค่าเวรนี", "ใบเซ็นชื่อนี", 5);
+  transferDataFromSheet(ss, "ค่าเวร มิส", "ใบเซ็นชื่อมิส", 5);
+}
+
+function transferDataFromBdRN(ss, sourceSheetName, targetSheetName) {
+  var sourceSheet = ss.getSheetByName(sourceSheetName);
+  var targetSheet = ss.getSheetByName(targetSheetName);
+
+  if (!sourceSheet || !targetSheet) {
+    Logger.log("One of the sheets not found: " + sourceSheetName + " or " + targetSheetName);
+    return;
+  }
+
+  var sourceRange1 = sourceSheet.getRange("C8:D19");
+  var sourceRange2 = sourceSheet.getRange("C33:D38");
+  var data1 = sourceRange1.getValues();
+  var data2 = sourceRange2.getValues();
+  var data = data1.concat(data2);
+
+  var checkRange1 = sourceSheet.getRange("F8:AJ19");
+  var checkRange2 = sourceSheet.getRange("F33:AJ38");
+  var checkData1 = checkRange1.getValues();
+  var checkData2 = checkRange2.getValues();
+  var checkData = checkData1.concat(checkData2);
+
+  var dateRange = sourceSheet.getRange("F6:AJ6");
+  var dateData = dateRange.getValues()[0];
+
+  var filteredData = [];
+
+  for (var i = 0; i < checkData.length; i++) {
+    for (var j = 0; j < checkData[i].length; j++) {
+      if (checkData[i][j] !== "") {
+        filteredData.push({date: dateData[j], values: data[i], shift: checkData[i][j]});
+      }
+    }
+  }
+
+  filteredData.sort(function(a, b) {
+    var dateComparison = new Date(a.date) - new Date(b.date);
+    if (dateComparison !== 0) {
+      return dateComparison;
+    } else {
+      if (a.shift === 'บ' && b.shift === 'ด') {
+        return -1;
+      } else if (a.shift === 'ด' && b.shift === 'บ') {
+        return 1;
+      } else {
+        return 0;
+      }
+    }
+  });
+
+  var lastDate = "";
+  var bFound = false;
+  var dFound = false;
+  var rowCount = 0; // ตัวแปรนับแถวที่ถูกดึงข้อมูล
+  var currentRow = 5; // เริ่มต้นที่แถว 5
+
+  for (var k = 0; k < filteredData.length; k++) {
+    var currentDate = filteredData[k].date + " มิถุนายน 2567";
+    if (currentDate !== lastDate) {
+      targetSheet.getRange(currentRow, 1).setValue(currentDate);
+      lastDate = currentDate;
+      bFound = false;
+      dFound = false;
+    } else {
+      targetSheet.getRange(currentRow, 1).setValue("");
+    }
+
+    var fullName = filteredData[k].values[0].trim() + " " + filteredData[k].values[1].trim();
+    fullName = fullName.replace(/\s\s+/g, ' ');
+    targetSheet.getRange(currentRow, 2).setValue(fullName);
+
+    if (filteredData[k].shift === 'บ' && !bFound) {
+      targetSheet.getRange(currentRow, 8).setValue(filteredData[k].shift);
+      bFound = true;
+    } else if (filteredData[k].shift === 'ด' && !dFound) {
+      targetSheet.getRange(currentRow, 8).setValue(filteredData[k].shift);
+      dFound = true;
+    } else {
+      targetSheet.getRange(currentRow, 8).setValue("");
+    }
+
+    var positions = {
+      "น.ส.สุคนธา สองสี": "พยาบาลวิชาชีพชำนาญการ",
+      "นางณัฐพร สนิทมัจโร": "พยาบาลวิชาชีพชำนาญการ",
+      "นางสาวกุลพร ทองศรี": "พยาบาลวิชาชีพชำนาญการ",
+      "นางปาจรีย์ หนูน้อย": "พยาบาลวิชาชีพชำนาญการ",
+      "นางอัจฉราวรรณ พูนผล": "พยาบาลวิชาชีพชำนาญการ",
+      "น.ส.อวินา ศรีประสม": "พยาบาลวิชาชีพชำนาญการ",
+      "น.ส.สุคนธา บุญสุขจันทร์": "พยาบาลวิชาชีพชำนาญการ",
+      "นางนสร ทองแก้ว": "พยาบาลวิชาชีพชำนาญการ",
+      "น.ส.วรรณฤดี เดชเกิด": "พยาบาลวิชาชีพปฏิบัติการ",
+      "น.ส.กมลทิพย์ เทพโอสถ": "พยาบาลวิชาชีพปฏิบัติการ",
+      "น.ส.นุชนาถ คงดำ": "พยาบาลวิชาชีพปฏิบัติการ",
+      "น.ส.ทานตะวัน ห่อเพ็ชร": "พยาบาลวิชาชีพปฏิบัติการ",
+      "นางปัทมาภรณ์ เกตุระหงษ์": "พยาบาลวิชาชีพปฏิบัติการ",
+      "น.ส.พรชิตา วงศ์สุวรรณ": "พยาบาลวิชาชีพปฏิบัติการ",
+      "น.ส.จุฬาลักษณ์ มามะ": "พยาบาลวิชาชีพปฏิบัติการ",
+      "น.ส.นายีฮะห์ ฮาแวยูโซะ": "พยาบาลวิชาชีพปฏิบัติการ",
+      "น.ส.บุญยาพร หนูช่วย": "พยาบาลวิชาชีพปฏิบัติการ",
+      "น.ส.วนัสนันท์ หมุดเจริญ": "พยาบาลวิชาชีพปฏิบัติการ",
+      "น.ส.สุไลดา ซูลง": "พยาบาลวิชาชีพปฏิบัติการ",
+      "น.ส.อามานีย์ ยูโซะ": "พยาบาลวิชาชีพ",
+      "น.ส.ชลาดาย์ อาเย๊าะ": "พยาบาลวิชาชีพ"
+    };
+
+    if (positions[fullName]) {
+      targetSheet.getRange(currentRow, 3).setValue(positions[fullName]);
+    } else {
+      targetSheet.getRange(currentRow, 3).setValue("");
+    }
+
+    rowCount++; // เพิ่มตัวนับแถว
+    currentRow++; // เพิ่มแถวปัจจุบัน
+
+    if (rowCount % 33 === 0) {
+      currentRow += 8; // เว้นว่างแถวไว้ 8 แถว
+    }
+  }
+}
+
+function mainFunction() {
+  copyDataToBdRN(); // Call the copy function
+  copyDataToOtherSheets(); // Call the function to copy data to other sheets
+  removeDuplicateEntries(); // Call the second function
+  clearMatchingValues(); // Call the function to clear matching values first
+  clearMatchingValuesMiss(); // Call the function to clear matching values for OT มิส and ค่าเวร มิส
+  transferDataFromOTRN(); // Call the transfer data function for OTRN
+  transferDataFromKaoWerni(); // Call the transfer data function for KaoWerni
+  transferDataFromKaoMiss(); // Call the transfer data function for KaoMiss
+  transferData(); // Call the transfer data function
+}
+
+function testUpdateShiftSchedule() {
+  mainFunction(); // Call the main function that includes all steps
+}
+
+function onOpen() {
+  var ui = SpreadsheetApp.getUi();
+  ui.createMenu('Custom Scripts')
+    .addItem('Update Shift Schedule', 'testUpdateShiftSchedule')
+    .addToUi();
+}
